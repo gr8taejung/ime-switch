@@ -1,0 +1,22 @@
+name: Rust Build
+
+on: [push] # 코드가 업데이트될 때마다 빌드
+
+jobs:
+  build:
+    runs-on: windows-latest # 윈도우 서버에서 빌드
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Build Release
+        run: cargo build --release
+
+      - name: Upload Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ime-switch-exe
+          path: target/release/ime-switch.exe
