@@ -1,11 +1,14 @@
 [package]
 name = "ime-switch"
 version = "0.1.0"
-edition = "2021"
+edition = "2024"
 
 [dependencies]
-windows = { version = "0.52", features = [
-    "Win32_Foundation",
-    "Win32_UI_Input_Ime",
-    "Win32_UI_WindowsAndMessaging",
-] }
+windows = { version = "0.60.0", features = ["Win32_UI_WindowsAndMessaging", "Win32_UI_Input_Ime", "Win32_Foundation"] }
+
+[profile.release]
+opt-level = "z"     # 바이너리 크기 최소화
+lto = true          # 전체 코드 최적화
+codegen-units = 1   # 최적화 집중
+panic = "abort"     # 불필요한 에러 복구 로직 제거
+strip = true        # 디버그 심볼 제거 (용량 대폭 감소 및 로딩 속도 향상)
