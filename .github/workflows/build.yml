@@ -1,16 +1,20 @@
-name: Rust Build
+name: Manual Rust Build
 
-on: [push] # 코드가 업데이트될 때마다 빌드
+on:
+  workflow_dispatch: # 👈 수동 실행을 위한 설정
 
 jobs:
   build:
-    runs-on: windows-latest # 윈도우 서버에서 빌드
+    runs-on: windows-latest
 
     steps:
       - uses: actions/checkout@v4
 
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
+
+      - name: Rust Cache
+        uses: Swatinem/rust-cache@v2 # 빌드 속도 향상을 위한 캐싱
 
       - name: Build Release
         run: cargo build --release
