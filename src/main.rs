@@ -1,6 +1,4 @@
 use std::env;
-use std::process::Command;
-use std::os::windows::process::CommandExt;
 use windows::Win32::{
     Foundation::{HWND, LPARAM, WPARAM},
     UI::{
@@ -11,26 +9,39 @@ use windows::Win32::{
     },
 };
 
-const DETACHED_PROCESS: u32 = 0x00000008;
-const CREATE_NO_WINDOW: u32 = 0x08000000;
-
-fn set_ime_sync(hwnd: HWND, ko: bool) {
+/// 현재 IME 상태 조회 (동기 방식)
+fn get_ime_status(hwnd: HWND) -> i32 {
     unsafe {
-        let imm_hwnd = ImmGetDefaultIMEWnd(hwnd);
-        if imm_hwnd.0.is_null() { return; }
+        // v0.60.0 규격: WPARAM/LPARAM을 Some()으로 감싸서 전달
+        SendMessageW(hwnd, WM_IME_CONTROL, Some(WPARAM(1)), Some(LPARAM(0))).0 as i32
+    }
+}
 
-        SendMessageW(
-            imm_hwnd,
-            WM_IME_CONTROL,
-            Some(WPARAM(IMC_SETOPENSTATUS as usize)),
-            Some(LPARAM(if ko { 1 } else { 0 })),
-        );
+/// IME 상태 설정 (안정적인 SendMessageW 동기 방식)
+fn set_ime(hwnd: HWND, ko: bool) {
+    unsafe {
         if ko {
+            // 한글로 바꿀 때는 '열기'와 '모드 설정' 두 번 호출 (안전성 최우선)
             SendMessageW(
-                imm_hwnd,
+                hwnd,
+                WM_IME_CONTROL,
+                Some(WPARAM(IMC_SETOPENSTATUS as usize)),
+                Some(LPARAM(1)),
+            );
+            SendMessageW(
+                hwnd,
                 WM_IME_CONTROL,
                 Some(WPARAM(IMC_SETCONVERSIONMODE as usize)),
                 Some(LPARAM(IME_CMODE_NATIVE.0 as isize)),
+            );
+        } else {
+            // 영문으로 바꿀 때는 '닫기'만 한 번 호출 (속도 최우선)
+            // IME가 닫히면 모드는 자동으로 무시되므로 가장 빠릅니다.
+            SendMessageW(
+                hwnd,
+                WM_IME_CONTROL,
+                Some(WPARAM(IMC_SETOPENSTATUS as usize)),
+                Some(LPARAM(0)),
             );
         }
     }
@@ -38,46 +49,23 @@ fn set_ime_sync(hwnd: HWND, ko: bool) {
 
 fn main() {
     let args: Vec<String> = env::args().collect();
+    
+    unsafe {
+        // 현재 활성화된 창 핸들 캡처
+        let fg_hwnd = GetForegroundWindow();
+        if fg_hwnd.0.is_null() { return; }
 
-    // [변경 모드 - 자식(백그라운드)]
-    // 부모로부터 받은 HWND를 사용하여 실제 작업을 수행합니다.
-    if args.len() == 4 && args[3] == "--bg" {
-        let ko = args[1] == "1";
-        // 인자로 받은 HWND 주소를 다시 포인터로 복원합니다.
-        let hwnd_val = args[2].parse::<usize>().unwrap_or(0);
-        if hwnd_val != 0 {
-            let hwnd = HWND(hwnd_val as *mut std::ffi::c_void);
-            set_ime_sync(hwnd, ko);
+        // 해당 창의 기본 IME 윈도우 핸들 확보
+        let hwnd = ImmGetDefaultIMEWnd(fg_hwnd);
+        if hwnd.0.is_null() { return; }
+
+        if args.len() < 2 {
+            // 조회 모드: 결과 출력
+            println!("{}", get_ime_status(hwnd));
+        } else {
+            // 변경 모드: 동기식으로 확실하게 변경 후 종료
+            let ko = args[1] == "1";
+            set_ime(hwnd, ko);
         }
-        return;
-    }
-
-    // [공통] 현재 활성 창 캡처 (부모/조회 모드 공통)
-    let fg_hwnd = unsafe { GetForegroundWindow() };
-    if fg_hwnd.0.is_null() { return; }
-
-    if args.len() < 2 {
-        // [조회 모드] 동기식으로 즉시 출력
-        unsafe {
-            let imm_hwnd = ImmGetDefaultIMEWnd(fg_hwnd);
-            let status = SendMessageW(imm_hwnd, WM_IME_CONTROL, Some(WPARAM(1)), Some(LPARAM(0))).0;
-            println!("{}", status);
-        }
-    } else {
-        // [변경 모드 - 부모]
-        // 1. 현재 창의 HWND를 숫자로 변환합니다.
-        let hwnd_str = (fg_hwnd.0 as usize).to_string();
-        let mode = &args[1];
-        let current_exe = env::current_exe().unwrap();
-        
-        // 2. 자식에게 HWND를 넘겨주며 실행 (DETACHED)
-        let _ = Command::new(current_exe)
-            .arg(mode)
-            .arg(hwnd_str)
-            .arg("--bg")
-            .creation_flags(DETACHED_PROCESS | CREATE_NO_WINDOW)
-            .spawn();
-
-        // 3. 부모는 즉시 종료 (Vim에게 제어권 반납)
     }
 }
