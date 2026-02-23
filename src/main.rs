@@ -26,16 +26,16 @@ fn set_ime(hwnd: HWND, ko: bool) {
         let _ = SendNotifyMessageW(
             hwnd,
             WM_IME_CONTROL,
-            Some(WPARAM(IMC_SETOPENSTATUS as usize)),
-            Some(LPARAM(if ko { 1 } else { 0 })),
+            WPARAM(IMC_SETOPENSTATUS as usize),
+            LPARAM(if ko { 1 } else { 0 }),
         );
         
         if ko {
             let _ = SendNotifyMessageW(
                 hwnd,
                 WM_IME_CONTROL,
-                Some(WPARAM(IMC_SETCONVERSIONMODE as usize)),
-                Some(LPARAM(IME_CMODE_NATIVE.0 as isize)),
+                WPARAM(IMC_SETCONVERSIONMODE as usize),
+                LPARAM(IME_CMODE_NATIVE.0 as isize),
             );
         }
         // OS가 메시지를 발송할 최소한의 시간을 확보 (1ms)
