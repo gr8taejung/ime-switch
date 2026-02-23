@@ -8,6 +8,12 @@ use windows::Win32::{
     },
 };
 
+// 링커를 통해 user32.dll의 SendNotifyMessageW를 직접 가져옵니다.
+#[link(name = "user32")]
+extern "system" {
+    fn SendNotifyMessageW(hWnd: HWND, Msg: u32, wParam: WPARAM, lParam: LPARAM) -> BOOL;
+}
+
 /// 현재 IME 상태를 가져옵니다 (0: 영문, 1: 한글)
 fn get_ime_status(hwnd: HWND) -> i32 {
     unsafe {
@@ -17,28 +23,6 @@ fn get_ime_status(hwnd: HWND) -> i32 {
 }
 
 /// IME 상태를 설정합니다.
-fn set_ime(hwnd: HWND, ko: bool) {
-    unsafe {
-        // 1. IME 열기/닫기 설정 (Post 대신 Send를 사용하여 확실하게 적용)
-        SendMessageW(
-            hwnd,
-            WM_IME_CONTROL,
-            Some(WPARAM(IMC_SETOPENSTATUS as usize)),
-            Some(LPARAM(if ko { 1 } else { 0 })),
-        );
-        
-        // 2. 한글 모드일 경우 Native 모드(한글) 강제 지정
-        if ko {
-            SendMessageW(
-                hwnd,
-                WM_IME_CONTROL,
-                Some(WPARAM(IMC_SETCONVERSIONMODE as usize)),
-                Some(LPARAM(IME_CMODE_NATIVE.0 as isize)),
-            );
-        }
-    }
-}
-
 /// 상태 변경은 응답을 기다리지 않는 비동기식(SendNotifyMessageW)을 사용하여 즉시 종료합니다.
 fn set_ime(hwnd: HWND, ko: bool) {
     unsafe {
