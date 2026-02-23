@@ -39,6 +39,30 @@ fn set_ime(hwnd: HWND, ko: bool) {
     }
 }
 
+/// 상태 변경은 응답을 기다리지 않는 비동기식(SendNotifyMessageW)을 사용하여 즉시 종료합니다.
+fn set_ime(hwnd: HWND, ko: bool) {
+    unsafe {
+        // SendNotifyMessageW는 메시지를 큐에 넣고 즉시 리턴합니다.
+        let _ = SendNotifyMessageW(
+            hwnd,
+            WM_IME_CONTROL,
+            Some(WPARAM(IMC_SETOPENSTATUS as usize)),
+            Some(LPARAM(if ko { 1 } else { 0 })),
+        );
+        
+        if ko {
+            let _ = SendNotifyMessageW(
+                hwnd,
+                WM_IME_CONTROL,
+                Some(WPARAM(IMC_SETCONVERSIONMODE as usize)),
+                Some(LPARAM(IME_CMODE_NATIVE.0 as isize)),
+            );
+        }
+        // OS가 메시지를 발송할 최소한의 시간을 확보 (1ms)
+        std::thread::sleep(std::time::Duration::from_millis(1));
+    }
+}
+
 fn main() {
     let args: Vec<String> = std::env::args().collect();
     
