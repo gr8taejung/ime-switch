@@ -8,30 +8,32 @@ use windows::Win32::{
     },
 };
 
+/// 현재 IME 상태를 가져옵니다 (0: 영문, 1: 한글)
 fn get_ime_status(hwnd: HWND) -> i32 {
     unsafe {
-        // SendMessageW의 결과값(LRESULT)의 내부 값(.0)을 가져옵니다.
-        SendMessageW(hwnd, WM_IME_CONTROL, WPARAM(1), LPARAM(0)).0 as i32
+        // v0.60.0에서는 인자를 Some()으로 감싸야 합니다.
+        SendMessageW(hwnd, WM_IME_CONTROL, Some(WPARAM(1)), Some(LPARAM(0))).0 as i32
     }
 }
 
+/// IME 상태를 설정합니다.
 fn set_ime(hwnd: HWND, ko: bool) {
     unsafe {
-        // 1. IME 열기/닫기 상태 설정
+        // 1. IME 열기/닫기 설정 (Post 대신 Send를 사용하여 확실하게 적용)
         SendMessageW(
             hwnd,
             WM_IME_CONTROL,
-            WPARAM(IMC_SETOPENSTATUS as usize),
-            LPARAM(if ko { 1 } else { 0 }),
+            Some(WPARAM(IMC_SETOPENSTATUS as usize)),
+            Some(LPARAM(if ko { 1 } else { 0 })),
         );
         
-        // 2. 한글 모드일 경우 추가로 Native(한글) 모드 강제 지정
+        // 2. 한글 모드일 경우 Native 모드(한글) 강제 지정
         if ko {
             SendMessageW(
                 hwnd,
                 WM_IME_CONTROL,
-                WPARAM(IMC_SETCONVERSIONMODE as usize),
-                LPARAM(IME_CMODE_NATIVE.0 as isize),
+                Some(WPARAM(IMC_SETCONVERSIONMODE as usize)),
+                Some(LPARAM(IME_CMODE_NATIVE.0 as isize)),
             );
         }
     }
@@ -40,21 +42,23 @@ fn set_ime(hwnd: HWND, ko: bool) {
 fn main() {
     let args: Vec<String> = std::env::args().collect();
     
-    // 현재 포커스된 창의 핸들을 가져옴
-    let fg_hwnd = unsafe { GetForegroundWindow() };
-    // 포인터 타입이므로 .is_null()로 체크합니다.
-    if fg_hwnd.0.is_null() { return; }
+    unsafe {
+        // 현재 활성화된 창 핸들 가져오기
+        let fg_hwnd = GetForegroundWindow();
+        // v0.60.0에서 HWND는 포인터이므로 .is_null()로 유효성 검사
+        if fg_hwnd.0.is_null() { return; }
 
-    // 해당 창의 기본 IME 윈도우 핸들을 가져옴
-    let hwnd = unsafe { ImmGetDefaultIMEWnd(fg_hwnd) };
-    if hwnd.0.is_null() { return; }
+        // 해당 창의 IME 메시지를 처리할 윈도우 핸들 가져오기
+        let hwnd = ImmGetDefaultIMEWnd(fg_hwnd);
+        if hwnd.0.is_null() { return; }
 
-    if args.len() < 2 {
-        // 현재 상태 출력
-        println!("{}", get_ime_status(hwnd));
-    } else {
-        // 인자에 따라 상태 변경
-        let ko = args[1] == "1";
-        set_ime(hwnd, ko);
+        if args.len() < 2 {
+            // 인자가 없으면 현재 상태를 출력 (Vim의 obtainIMCmd용)
+            println!("{}", get_ime_status(hwnd));
+        } else {
+            // 인자가 있으면 해당 상태로 변경 (Vim의 switchIMCmd용)
+            let ko = args[1] == "1";
+            set_ime(hwnd, ko);
+        }
     }
 }
