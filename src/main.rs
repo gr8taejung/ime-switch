@@ -1,5 +1,5 @@
 use windows::Win32::{
-    Foundation::{HWND, LPARAM, WPARAM},
+    Foundation::{HWND, LPARAM, WPARAM, BOOL},
     UI::{
         Input::Ime::{
             IMC_SETCONVERSIONMODE, IMC_SETOPENSTATUS, IME_CMODE_NATIVE, ImmGetDefaultIMEWnd,
