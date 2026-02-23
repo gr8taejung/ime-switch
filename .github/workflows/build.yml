@@ -22,5 +22,5 @@ jobs:
       - name: Upload Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: ime-switch-exe
+          name: ime-select-exe
           path: target/release/ime-select.exe
