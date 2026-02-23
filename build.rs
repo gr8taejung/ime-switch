@@ -5,9 +5,7 @@ fn main() {
         let mut res = winres::WindowsResource::new();
         
         // Cargo.toml에 있는 버전과 이름을 자동으로 가져옵니다.
-        // 필요하다면 아이콘(.ico)도 여기서 설정 가능합니다.
-        // res.set_icon("my_icon.ico"); 
-
+        res.set_icon("icon.ico"); 
         res.set("FileDescription", "IME Auto Switcher for VSCode Vim plugin");
         res.set("ProductName", "IME Select");
         res.set("OriginalFilename", "ime-select.exe");
