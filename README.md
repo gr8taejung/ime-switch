@@ -1,1 +1,1 @@
-# ime-switch
+# ime-select
