@@ -1,23 +1,14 @@
 use windows::Win32::{
-    Foundation::{HWND, LPARAM, WPARAM, BOOL},
+    Foundation::{HWND, LPARAM, WPARAM},
     UI::{
         Input::Ime::{
             IMC_SETCONVERSIONMODE, IMC_SETOPENSTATUS, IME_CMODE_NATIVE, ImmGetDefaultIMEWnd,
         },
-        WindowsAndMessaging::{GetForegroundWindow, SendMessageW, WM_IME_CONTROL},
+        WindowsAndMessaging::{
+            GetForegroundWindow, SendMessageW, SendNotifyMessageW, WM_IME_CONTROL
+        },
     },
 };
-
-// 링커를 통해 user32.dll의 SendNotifyMessageW를 직접 가져옵니다.
-// Rust 2024 에디션 규격: extern 블록은 반드시 unsafe여야 합니다.
-unsafe extern "system" {
-    fn SendNotifyMessageW(
-        hwnd: HWND,
-        msg: u32,
-        wparam: WPARAM,
-        lparam: LPARAM,
-    ) -> BOOL;
-}
 
 /// 현재 IME 상태를 가져옵니다 (0: 영문, 1: 한글)
 fn get_ime_status(hwnd: HWND) -> i32 {
@@ -35,16 +26,16 @@ fn set_ime(hwnd: HWND, ko: bool) {
         let _ = SendNotifyMessageW(
             hwnd,
             WM_IME_CONTROL,
-            WPARAM(IMC_SETOPENSTATUS as usize),
-            LPARAM(if ko { 1 } else { 0 }),
+            Some(WPARAM(IMC_SETOPENSTATUS as usize)),
+            Some(LPARAM(if ko { 1 } else { 0 })),
         );
         
         if ko {
             let _ = SendNotifyMessageW(
                 hwnd,
                 WM_IME_CONTROL,
-                WPARAM(IMC_SETCONVERSIONMODE as usize),
-                LPARAM(IME_CMODE_NATIVE.0 as isize),
+                Some(WPARAM(IMC_SETCONVERSIONMODE as usize)),
+                Some(LPARAM(IME_CMODE_NATIVE.0 as isize)),
             );
         }
         // OS가 메시지를 발송할 최소한의 시간을 확보 (1ms)
